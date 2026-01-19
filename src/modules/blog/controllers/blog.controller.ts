@@ -4,6 +4,7 @@ import { createApiHandler } from '@/lib/api-handler'
 import { successResponse, errorResponse, validationErrorResponse } from '@/utils/api-response'
 import { createBlogPostSchema, updateBlogPostSchema } from '../schemas/blog.schemas'
 import { paginationSchema } from '@/lib/validation'
+import { withAuth, withEditor, withContributor } from '@/lib/auth/with-auth'
 
 const blogService = new BlogService()
 
@@ -54,7 +55,7 @@ export const getBlogPostBySlug = createApiHandler(async (request: NextRequest, c
   return successResponse(post, 'Blog post retrieved successfully')
 })
 
-export const createBlogPost = createApiHandler(async (request: NextRequest) => {
+export const createBlogPost = withContributor(async (request: NextRequest, user) => {
   const body = await request.json()
   const validation = createBlogPostSchema.safeParse(body)
 
@@ -62,14 +63,22 @@ export const createBlogPost = createApiHandler(async (request: NextRequest) => {
     return validationErrorResponse(validation.error.flatten().fieldErrors)
   }
 
-  const post = await blogService.create(validation.data)
+  // Set author to current user if not provided
+  const data = { ...validation.data, authorId: validation.data.authorId || user.userId }
+  const post = await blogService.create(data)
   return successResponse(post, 'Blog post created successfully', 201)
 })
 
-export const updateBlogPost = createApiHandler(async (request: NextRequest, context) => {
+export const updateBlogPost = withContributor(async (request: NextRequest, user, context) => {
   const { id } = context?.params || {}
   if (!id) {
     return errorResponse('Blog post ID is required', 400)
+  }
+
+  // Check if user owns the post or is editor/admin
+  const existingPost = await blogService.getById(id)
+  if (existingPost.author.id !== user.userId && !['ADMIN', 'EDITOR'].includes(user.role)) {
+    return errorResponse('You can only edit your own posts', 403)
   }
 
   const body = await request.json()
@@ -83,10 +92,16 @@ export const updateBlogPost = createApiHandler(async (request: NextRequest, cont
   return successResponse(post, 'Blog post updated successfully')
 })
 
-export const deleteBlogPost = createApiHandler(async (request: NextRequest, context) => {
+export const deleteBlogPost = withEditor(async (request: NextRequest, user, context) => {
   const { id } = context?.params || {}
   if (!id) {
     return errorResponse('Blog post ID is required', 400)
+  }
+
+  // Only admin can delete, or user can delete their own
+  const existingPost = await blogService.getById(id)
+  if (existingPost.author.id !== user.userId && user.role !== 'ADMIN') {
+    return errorResponse('You can only delete your own posts', 403)
   }
 
   await blogService.delete(id)

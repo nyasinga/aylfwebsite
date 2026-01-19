@@ -4,10 +4,11 @@ import { createApiHandler } from '@/lib/api-handler'
 import { successResponse, errorResponse, validationErrorResponse } from '@/utils/api-response'
 import { createUserSchema, updateUserSchema } from '../schemas/user.schemas'
 import { paginationSchema } from '@/lib/validation'
+import { withAdmin } from '@/lib/auth/with-auth'
 
 const userService = new UserService()
 
-export const getUsers = createApiHandler(async (request: NextRequest) => {
+export const getUsers = withAdmin(async (request: NextRequest, user) => {
   const { searchParams } = new URL(request.url)
   const params = {
     page: searchParams.get('page') || '1',
@@ -37,7 +38,7 @@ export const getUserById = createApiHandler(async (request: NextRequest, context
   return successResponse(user, 'User retrieved successfully')
 })
 
-export const createUser = createApiHandler(async (request: NextRequest) => {
+export const createUser = withAdmin(async (request: NextRequest, authUser) => {
   const body = await request.json()
   const validation = createUserSchema.safeParse(body)
 
@@ -49,7 +50,7 @@ export const createUser = createApiHandler(async (request: NextRequest) => {
   return successResponse(user, 'User created successfully', 201)
 })
 
-export const updateUser = createApiHandler(async (request: NextRequest, context) => {
+export const updateUser = withAdmin(async (request: NextRequest, authUser, context) => {
   const { id } = context?.params || {}
   if (!id) {
     return errorResponse('User ID is required', 400)
@@ -62,11 +63,11 @@ export const updateUser = createApiHandler(async (request: NextRequest, context)
     return validationErrorResponse(validation.error.flatten().fieldErrors)
   }
 
-  const user = await userService.update(id, validation.data)
-  return successResponse(user, 'User updated successfully')
+  const updatedUser = await userService.update(id, validation.data)
+  return successResponse(updatedUser, 'User updated successfully')
 })
 
-export const deleteUser = createApiHandler(async (request: NextRequest, context) => {
+export const deleteUser = withAdmin(async (request: NextRequest, user, context) => {
   const { id } = context?.params || {}
   if (!id) {
     return errorResponse('User ID is required', 400)

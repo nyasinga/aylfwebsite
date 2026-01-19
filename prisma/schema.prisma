@@ -38,8 +38,9 @@ model User {
 enum UserRole {
   USER
   ADMIN
-  MODERATOR
   EDITOR
+  CONTRIBUTOR
+  MODERATOR
 }
 
 // ============================================

@@ -354,10 +354,10 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation
 ## Support
 
 For issues and questions, please contact [your contact information].
-Build a dynamic homepage with:
-- Hero section (editable from admin)
-- Impact metrics
-- Featured blog posts
-- Upcoming events
-- Call-to-action buttons
-Use database-driven content.
+Create admin resources for:
+- Pages
+- Blog Posts
+- Events
+- Media Gallery
+- Testimonials
+Ensure role-based access control.
